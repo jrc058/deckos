@@ -1,0 +1,44 @@
+# Base System
+base
+linux
+linux-firmware
+systemd
+
+# Boot
+amd-ucode
+intel-ucode
+
+# Filesystem
+e2fsprogs
+dosfstools
+
+# Network
+networkmanager
+wpa_supplicant
+
+# Display
+wayland
+sway
+swaylock
+swayidle
+waybar
+mesa
+
+# Terminal
+alacritty
+
+# Editor
+neovim
+
+# Utilities
+git
+htop
+ranger
+
+# Shell
+zsh
+
+# Fonts
+ttf-dejavu
+ttf-hack
+noto-fonts
