@@ -149,8 +149,9 @@ python-pip
 htop
 btop
 
-# Setup Wizard
+# Setup Wizard & Installer Tools
 dialog
+arch-install-scripts
 
 # ============================================
 # AI STACK (Python dependencies)
