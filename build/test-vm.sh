@@ -24,16 +24,44 @@ if [ ! -f "${SCRIPT_DIR}/test-disk.qcow2" ]; then
     qemu-img create -f qcow2 "${SCRIPT_DIR}/test-disk.qcow2" 32G
 fi
 
-# Run QEMU
-qemu-system-x86_64 \
-    -enable-kvm \
-    -m 4G \
-    -smp 4 \
-    -cdrom "$ISO" \
-    -boot d \
-    -drive file="${SCRIPT_DIR}/test-disk.qcow2",format=qcow2 \
-    -display gtk,gl=on \
-    -device virtio-vga-gl \
-    -device qemu-xhci \
-    -device usb-tablet \
-    -net nic -net user
+# Check for OVMF (UEFI firmware)
+if [ -f /usr/share/edk2-ovmf/x64/OVMF_CODE.fd ]; then
+    OVMF_CODE="/usr/share/edk2-ovmf/x64/OVMF_CODE.fd"
+elif [ -f /usr/share/ovmf/x64/OVMF_CODE.fd ]; then
+    OVMF_CODE="/usr/share/ovmf/x64/OVMF_CODE.fd"
+else
+    echo "Warning: OVMF not found, trying without UEFI..."
+    OVMF_CODE=""
+fi
+
+# Run QEMU with UEFI
+if [ -n "$OVMF_CODE" ]; then
+    echo "Using UEFI boot..."
+    qemu-system-x86_64 \
+        -enable-kvm \
+        -m 4G \
+        -smp 4 \
+        -bios "$OVMF_CODE" \
+        -cdrom "$ISO" \
+        -boot d \
+        -drive file="${SCRIPT_DIR}/test-disk.qcow2",format=qcow2 \
+        -display gtk,gl=on \
+        -device virtio-vga-gl \
+        -device qemu-xhci \
+        -device usb-tablet \
+        -net nic -net user
+else
+    # Fallback to legacy BIOS
+    qemu-system-x86_64 \
+        -enable-kvm \
+        -m 4G \
+        -smp 4 \
+        -cdrom "$ISO" \
+        -boot d \
+        -drive file="${SCRIPT_DIR}/test-disk.qcow2",format=qcow2 \
+        -display gtk,gl=on \
+        -device virtio-vga-gl \
+        -device qemu-xhci \
+        -device usb-tablet \
+        -net nic -net user
+fi
