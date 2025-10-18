@@ -1,0 +1,14 @@
+[Unit]
+Description=DeckOS Wake Word Detection
+After=sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/deckos-wake-word
+Restart=on-failure
+RestartSec=5
+User=deckos
+Group=audio
+
+[Install]
+WantedBy=multi-user.target

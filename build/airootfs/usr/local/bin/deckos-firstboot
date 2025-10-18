@@ -1,0 +1,66 @@
+#!/bin/bash
+# DeckOS First Boot Setup Wizard
+# Interactive setup for new installations
+
+set -e
+
+# Configuration file
+CONFIG_FILE="/etc/deckos/setup.conf"
+SETUP_COMPLETE="/etc/deckos/.setup-complete"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Check if setup already completed
+if [ -f "$SETUP_COMPLETE" ]; then
+    echo "Setup already completed. Run 'deckos-setup' to reconfigure."
+    exit 0
+fi
+
+# Source setup modules
+source /usr/local/lib/deckos/setup-welcome.sh
+source /usr/local/lib/deckos/setup-hardware.sh
+source /usr/local/lib/deckos/setup-mode.sh
+source /usr/local/lib/deckos/setup-user.sh
+source /usr/local/lib/deckos/setup-network.sh
+source /usr/local/lib/deckos/setup-ai.sh
+source /usr/local/lib/deckos/setup-finalize.sh
+
+# Main setup flow
+main() {
+    clear
+    
+    # Welcome screen
+    setup_welcome
+    
+    # Hardware detection
+    detect_hardware
+    
+    # Mode selection
+    setup_mode
+    
+    # User account
+    setup_user
+    
+    # Network
+    setup_network
+    
+    # AI configuration
+    setup_ai
+    
+    # Finalize
+    finalize_setup
+    
+    # Mark setup complete
+    touch "$SETUP_COMPLETE"
+    
+    echo -e "${GREEN}Setup complete! Rebooting...${NC}"
+    sleep 3
+    reboot
+}
+
+main "$@"

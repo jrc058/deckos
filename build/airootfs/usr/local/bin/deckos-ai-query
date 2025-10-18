@@ -1,0 +1,234 @@
+#!/usr/bin/env python3
+"""
+DeckOS AI Query Router
+Routes queries to appropriate AI backend (local/cloud/home server)
+"""
+
+import sys
+import json
+import requests
+import subprocess
+from pathlib import Path
+
+CONFIG_FILE = Path("/etc/deckos/ai.conf")
+ROUTING_RULES = Path("/etc/deckos/routing-rules.yaml")
+
+class QueryRouter:
+    def __init__(self):
+        self.load_config()
+    
+    def load_config(self):
+        """Load AI configuration"""
+        if CONFIG_FILE.exists():
+            with open(CONFIG_FILE) as f:
+                self.config = json.load(f)
+        else:
+            self.config = {
+                "ai_mode": "hybrid",
+                "home_server": None,
+                "cloud_provider": None
+            }
+    
+    def is_online(self):
+        """Check if device is online"""
+        try:
+            requests.get("https://1.1.1.1", timeout=2)
+            return True
+        except:
+            return False
+    
+    def is_home_network(self):
+        """Check if on home network"""
+        if not self.config.get("home_server"):
+            return False
+        
+        try:
+            # Try to reach home server
+            home_url = self.config["home_server"]["url"]
+            requests.get(home_url, timeout=2)
+            return True
+        except:
+            return False
+    
+    def classify_query(self, query):
+        """Classify query complexity"""
+        # Simple heuristics
+        simple_keywords = ["open", "close", "switch", "show", "what time", "what day"]
+        
+        query_lower = query.lower()
+        
+        # Check for simple commands
+        for keyword in simple_keywords:
+            if keyword in query_lower:
+                return "simple"
+        
+        # Check for code generation
+        if any(word in query_lower for word in ["write", "code", "function", "script"]):
+            return "complex"
+        
+        # Check for explanations
+        if any(word in query_lower for word in ["explain", "how does", "what is"]):
+            return "medium"
+        
+        # Default to medium
+        return "medium"
+    
+    def route_query(self, query):
+        """Route query to appropriate backend"""
+        complexity = self.classify_query(query)
+        ai_mode = self.config["ai_mode"]
+        
+        # Check power mode
+        power_mode = self.get_power_mode()
+        
+        # Critical mode: No AI
+        if power_mode == "critical":
+            return {
+                "backend": "none",
+                "reason": "AI disabled to save battery",
+                "response": None
+            }
+        
+        # Power saver mode: Cloud only
+        if power_mode == "power_saver":
+            if self.is_online():
+                return self.query_cloud(query)
+            else:
+                return {
+                    "backend": "none",
+                    "reason": "Offline in power saver mode",
+                    "response": None
+                }
+        
+        # Local only mode
+        if ai_mode == "local":
+            return self.query_local(query, complexity)
+        
+        # Cloud only mode
+        if ai_mode == "cloud":
+            if self.is_online():
+                return self.query_cloud(query)
+            else:
+                return self.query_local(query, complexity)
+        
+        # Hybrid mode (smart routing)
+        if complexity == "simple":
+            return self.query_local(query, "tiny")
+        elif complexity == "medium":
+            return self.query_local(query, "medium")
+        else:
+            # Complex query - prefer cloud/home server
+            if self.is_home_network():
+                return self.query_home_server(query)
+            elif self.is_online():
+                return self.query_cloud(query)
+            else:
+                return self.query_local(query, "medium")
+    
+    def query_local(self, query, model="medium"):
+        """Query local Ollama"""
+        try:
+            response = requests.post(
+                "http://localhost:11434/api/generate",
+                json={
+                    "model": self.get_local_model(model),
+                    "prompt": query,
+                    "stream": False
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                return {
+                    "backend": "local",
+                    "model": self.get_local_model(model),
+                    "response": result.get("response")
+                }
+        except Exception as e:
+            pass
+        
+        return {
+            "backend": "local",
+            "error": "Local AI unavailable",
+            "response": None
+        }
+    
+    def query_home_server(self, query):
+        """Query home server"""
+        try:
+            home_url = self.config["home_server"]["url"]
+            response = requests.post(
+                f"{home_url}/api/generate",
+                json={"prompt": query},
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                return {
+                    "backend": "home_server",
+                    "response": response.json().get("response")
+                }
+        except Exception as e:
+            pass
+        
+        # Fallback to cloud
+        return self.query_cloud(query)
+    
+    def query_cloud(self, query):
+        """Query cloud provider"""
+        provider = self.config.get("cloud_provider")
+        
+        if not provider:
+            return {
+                "backend": "cloud",
+                "error": "No cloud provider configured",
+                "response": None
+            }
+        
+        # Placeholder - implement actual cloud API calls
+        return {
+            "backend": "cloud",
+            "provider": provider,
+            "response": "Cloud query not yet implemented"
+        }
+    
+    def get_local_model(self, complexity):
+        """Get appropriate local model"""
+        if complexity == "tiny" or complexity == "simple":
+            return "tinyllama"
+        elif complexity == "medium":
+            return "phi"
+        else:
+            return "mistral"
+    
+    def get_power_mode(self):
+        """Get current power mode"""
+        try:
+            result = subprocess.run(
+                ["deckos-ai-manager", "status"],
+                capture_output=True,
+                text=True
+            )
+            
+            for line in result.stdout.split('\n'):
+                if "Power Mode:" in line:
+                    return line.split(":")[1].strip()
+        except:
+            pass
+        
+        return "performance"
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: deckos-ai-query <query>")
+        sys.exit(1)
+    
+    query = " ".join(sys.argv[1:])
+    router = QueryRouter()
+    result = router.route_query(query)
+    
+    print(json.dumps(result, indent=2))
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,15 @@
+[Unit]
+Description=DeckOS Whisper STT Service
+After=sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/deckos-whisper-server
+Restart=on-failure
+RestartSec=5
+User=deckos
+Group=audio
+Environment="WHISPER_MODEL=/var/lib/deckos/models/whisper-base"
+
+[Install]
+WantedBy=multi-user.target

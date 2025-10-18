@@ -1,0 +1,56 @@
+#!/bin/bash
+# DeckOS Power Management Setup
+# Optimizes power settings for handheld devices
+
+# Enable TLP
+systemctl enable tlp.service
+systemctl start tlp.service
+
+# Configure TLP for handheld use
+cat > /etc/tlp.d/01-deckos.conf << 'EOF'
+# DeckOS Power Configuration
+
+# CPU Scaling
+CPU_SCALING_GOVERNOR_ON_AC=performance
+CPU_SCALING_GOVERNOR_ON_BAT=powersave
+
+# CPU Boost
+CPU_BOOST_ON_AC=1
+CPU_BOOST_ON_BAT=0
+
+# CPU Energy Performance
+CPU_ENERGY_PERF_POLICY_ON_AC=performance
+CPU_ENERGY_PERF_POLICY_ON_BAT=power
+
+# Platform Profile
+PLATFORM_PROFILE_ON_AC=performance
+PLATFORM_PROFILE_ON_BAT=low-power
+
+# Disk
+DISK_IDLE_SECS_ON_AC=0
+DISK_IDLE_SECS_ON_BAT=2
+
+# WiFi Power Save
+WIFI_PWR_ON_AC=off
+WIFI_PWR_ON_BAT=on
+
+# USB Autosuspend
+USB_AUTOSUSPEND=1
+USB_EXCLUDE_BTUSB=1
+USB_EXCLUDE_PHONE=1
+
+# Battery Thresholds (if supported)
+START_CHARGE_THRESH_BAT0=75
+STOP_CHARGE_THRESH_BAT0=80
+EOF
+
+# Set up udev rules for power button
+cat > /etc/udev/rules.d/99-deckos-power.rules << 'EOF'
+# DeckOS Power Button Rules
+# Short press: suspend
+# Long press: power menu
+
+ACTION=="button/power", RUN+="/usr/local/bin/deckos-power-button"
+EOF
+
+echo "DeckOS power management configured"

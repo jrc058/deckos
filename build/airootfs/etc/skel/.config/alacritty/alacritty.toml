@@ -1,0 +1,53 @@
+# DeckOS Alacritty Configuration
+# Optimized for handheld screens
+
+[window]
+opacity = 0.95
+padding = { x = 10, y = 10 }
+
+[font]
+size = 11.0
+
+[font.normal]
+family = "Hack"
+style = "Regular"
+
+[font.bold]
+family = "Hack"
+style = "Bold"
+
+[font.italic]
+family = "Hack"
+style = "Italic"
+
+[colors.primary]
+background = "#1e1e1e"
+foreground = "#d4d4d4"
+
+[colors.normal]
+black = "#1e1e1e"
+red = "#f44747"
+green = "#4ec9b0"
+yellow = "#ffcc00"
+blue = "#0078d4"
+magenta = "#bc3fbc"
+cyan = "#11a8cd"
+white = "#d4d4d4"
+
+[colors.bright]
+black = "#808080"
+red = "#f44747"
+green = "#4ec9b0"
+yellow = "#ffcc00"
+blue = "#0078d4"
+magenta = "#bc3fbc"
+cyan = "#11a8cd"
+white = "#ffffff"
+
+[keyboard]
+bindings = [
+    { key = "V", mods = "Control|Shift", action = "Paste" },
+    { key = "C", mods = "Control|Shift", action = "Copy" },
+    { key = "Plus", mods = "Control", action = "IncreaseFontSize" },
+    { key = "Minus", mods = "Control", action = "DecreaseFontSize" },
+]

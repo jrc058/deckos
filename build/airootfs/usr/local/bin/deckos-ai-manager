@@ -1,0 +1,251 @@
+#!/usr/bin/env python3
+"""
+DeckOS AI Manager
+Main orchestrator for AI services and model management
+"""
+
+import os
+import sys
+import json
+import psutil
+import subprocess
+from pathlib import Path
+from enum import Enum
+
+# Configuration paths
+CONFIG_DIR = Path("/etc/deckos")
+MODELS_DIR = Path("/var/lib/deckos/models")
+MODELS_REGISTRY = CONFIG_DIR / "models.json"
+AI_CONFIG = CONFIG_DIR / "ai.conf"
+
+class PowerMode(Enum):
+    PERFORMANCE = "performance"
+    BALANCED = "balanced"
+    POWER_SAVER = "power_saver"
+    CRITICAL = "critical"
+
+class AIMode(Enum):
+    LOCAL = "local"
+    HYBRID = "hybrid"
+    CLOUD = "cloud"
+
+class AIManager:
+    def __init__(self):
+        self.ensure_directories()
+        self.load_config()
+        self.load_models_registry()
+    
+    def ensure_directories(self):
+        """Create necessary directories"""
+        CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+        MODELS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    def load_config(self):
+        """Load AI configuration"""
+        if AI_CONFIG.exists():
+            with open(AI_CONFIG) as f:
+                self.config = json.load(f)
+        else:
+            self.config = {
+                "ai_mode": "hybrid",
+                "voice_enabled": False,
+                "power_aware": True,
+                "home_server": None,
+                "cloud_provider": None
+            }
+            self.save_config()
+    
+    def save_config(self):
+        """Save AI configuration"""
+        with open(AI_CONFIG, 'w') as f:
+            json.dump(self.config, f, indent=2)
+    
+    def load_models_registry(self):
+        """Load installed models registry"""
+        if MODELS_REGISTRY.exists():
+            with open(MODELS_REGISTRY) as f:
+                self.models = json.load(f)
+        else:
+            self.models = {"installed": [], "available": []}
+            self.save_models_registry()
+
+    
+    def save_models_registry(self):
+        """Save models registry"""
+        with open(MODELS_REGISTRY, 'w') as f:
+            json.dump(self.models, f, indent=2)
+    
+    def get_power_mode(self):
+        """Determine current power mode"""
+        battery = psutil.sensors_battery()
+        
+        if not battery or battery.power_plugged:
+            return PowerMode.PERFORMANCE
+        
+        percent = battery.percent
+        if percent < 10:
+            return PowerMode.CRITICAL
+        elif percent < 40:
+            return PowerMode.POWER_SAVER
+        elif percent < 80:
+            return PowerMode.BALANCED
+        else:
+            return PowerMode.PERFORMANCE
+    
+    def get_ai_capabilities(self):
+        """Get current AI capabilities based on power mode"""
+        power_mode = self.get_power_mode()
+        
+        capabilities = {
+            "wake_word": False,
+            "stt": False,
+            "tts": False,
+            "llm": False,
+            "embeddings": False
+        }
+        
+        if power_mode == PowerMode.CRITICAL:
+            return capabilities
+        
+        if power_mode == PowerMode.POWER_SAVER:
+            capabilities["wake_word"] = self.config.get("voice_enabled", False)
+            capabilities["stt"] = "lazy"  # Load on demand
+            capabilities["tts"] = "cached"  # Cached only
+            return capabilities
+        
+        if power_mode == PowerMode.BALANCED:
+            capabilities["wake_word"] = self.config.get("voice_enabled", False)
+            capabilities["stt"] = "tiny"  # Whisper tiny
+            capabilities["tts"] = True
+            capabilities["llm"] = "throttled"
+            capabilities["embeddings"] = True
+            return capabilities
+        
+        # Performance mode
+        capabilities["wake_word"] = self.config.get("voice_enabled", False)
+        capabilities["stt"] = "base"  # Whisper base
+        capabilities["tts"] = True
+        capabilities["llm"] = "full"
+        capabilities["embeddings"] = True
+        return capabilities
+    
+    def start_services(self):
+        """Start AI services based on configuration"""
+        capabilities = self.get_ai_capabilities()
+        
+        # Wake word service
+        if capabilities["wake_word"]:
+            self.start_service("deckos-wake-word")
+        else:
+            self.stop_service("deckos-wake-word")
+        
+        # STT service
+        if capabilities["stt"] and capabilities["stt"] != "lazy":
+            self.start_service("deckos-whisper")
+        elif capabilities["stt"] == "lazy":
+            self.stop_service("deckos-whisper")
+        else:
+            self.stop_service("deckos-whisper")
+        
+        # TTS service
+        if capabilities["tts"] and capabilities["tts"] != "cached":
+            self.start_service("deckos-tts")
+        else:
+            self.stop_service("deckos-tts")
+        
+        # LLM service
+        if capabilities["llm"]:
+            self.start_service("deckos-ollama")
+            if capabilities["llm"] == "throttled":
+                self.throttle_service("deckos-ollama", 50)
+            else:
+                self.throttle_service("deckos-ollama", 100)
+        else:
+            self.stop_service("deckos-ollama")
+    
+    def start_service(self, service):
+        """Start a systemd service"""
+        try:
+            subprocess.run(["systemctl", "start", f"{service}.service"],
+                         check=True, capture_output=True)
+        except subprocess.CalledProcessError:
+            pass
+    
+    def stop_service(self, service):
+        """Stop a systemd service"""
+        try:
+            subprocess.run(["systemctl", "stop", f"{service}.service"],
+                         check=True, capture_output=True)
+        except subprocess.CalledProcessError:
+            pass
+    
+    def throttle_service(self, service, cpu_percent):
+        """Throttle service CPU usage"""
+        try:
+            if cpu_percent < 100:
+                subprocess.run([
+                    "systemctl", "set-property",
+                    f"{service}.service",
+                    f"CPUQuota={cpu_percent}%"
+                ], check=True, capture_output=True)
+            else:
+                subprocess.run([
+                    "systemctl", "set-property",
+                    f"{service}.service",
+                    "CPUQuota="
+                ], check=True, capture_output=True)
+        except subprocess.CalledProcessError:
+            pass
+    
+    def status(self):
+        """Get AI system status"""
+        power_mode = self.get_power_mode()
+        capabilities = self.get_ai_capabilities()
+        
+        battery = psutil.sensors_battery()
+        battery_info = "Plugged In"
+        if battery and not battery.power_plugged:
+            battery_info = f"{battery.percent}%"
+        
+        print(f"DeckOS AI Manager Status")
+        print(f"=" * 40)
+        print(f"Power Mode: {power_mode.value}")
+        print(f"Battery: {battery_info}")
+        print(f"AI Mode: {self.config['ai_mode']}")
+        print(f"\nCapabilities:")
+        print(f"  Wake Word: {capabilities['wake_word']}")
+        print(f"  Speech-to-Text: {capabilities['stt']}")
+        print(f"  Text-to-Speech: {capabilities['tts']}")
+        print(f"  LLM: {capabilities['llm']}")
+        print(f"  Embeddings: {capabilities['embeddings']}")
+        print(f"\nInstalled Models: {len(self.models['installed'])}")
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: deckos-ai-manager <command>")
+        print("Commands: start, stop, status, restart")
+        sys.exit(1)
+    
+    manager = AIManager()
+    command = sys.argv[1]
+    
+    if command == "start":
+        manager.start_services()
+        print("AI services started")
+    elif command == "stop":
+        manager.stop_service("deckos-wake-word")
+        manager.stop_service("deckos-whisper")
+        manager.stop_service("deckos-tts")
+        manager.stop_service("deckos-ollama")
+        print("AI services stopped")
+    elif command == "status":
+        manager.status()
+    elif command == "restart":
+        manager.start_services()
+        print("AI services restarted")
+    else:
+        print(f"Unknown command: {command}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

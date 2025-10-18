@@ -1,0 +1,15 @@
+# DeckOS Environment Variables
+
+# Wayland
+MOZ_ENABLE_WAYLAND=1
+QT_QPA_PLATFORM=wayland
+SDL_VIDEODRIVER=wayland
+_JAVA_AWT_WM_NONREPARENTING=1
+
+# Gaming optimizations
+MANGOHUD=1
+DXVK_HUD=fps
+
+# Editor
+EDITOR=nvim
+VISUAL=nvim

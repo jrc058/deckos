@@ -1,0 +1,15 @@
+[Unit]
+Description=DeckOS Text-to-Speech Service
+After=sound.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/deckos-tts-server
+Restart=on-failure
+RestartSec=5
+User=deckos
+Group=audio
+Environment="PIPER_MODEL=/var/lib/deckos/models/piper-en-us"
+
+[Install]
+WantedBy=multi-user.target

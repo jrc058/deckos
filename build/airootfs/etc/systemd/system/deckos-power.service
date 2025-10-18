@@ -1,0 +1,11 @@
+[Unit]
+Description=DeckOS Power Management
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/deckos-power-setup
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

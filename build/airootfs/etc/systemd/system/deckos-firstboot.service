@@ -1,0 +1,16 @@
+[Unit]
+Description=DeckOS First Boot Setup Wizard
+After=multi-user.target
+ConditionPathExists=!/etc/deckos/.setup-complete
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/deckos-firstboot
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+
+[Install]
+WantedBy=multi-user.target

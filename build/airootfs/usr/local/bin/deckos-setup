@@ -1,0 +1,54 @@
+#!/bin/bash
+# DeckOS Setup - Reconfigure system after initial setup
+
+if [ ! -f /etc/deckos/.setup-complete ]; then
+    echo "First boot setup not completed yet."
+    echo "Run: sudo systemctl start deckos-firstboot.service"
+    exit 1
+fi
+
+dialog --title "DeckOS Setup" \
+       --menu "What would you like to configure?" 15 60 6 \
+       "1" "Change mode (Consumer/Developer)" \
+       "2" "Voice control settings" \
+       "3" "AI configuration" \
+       "4" "Display settings" \
+       "5" "Network settings" \
+       "6" "Exit" \
+       2> /tmp/setup_choice
+
+CHOICE=$(cat /tmp/setup_choice)
+rm -f /tmp/setup_choice
+
+case $CHOICE in
+    1)
+        source /usr/local/lib/deckos/setup-mode.sh
+        setup_mode
+        ;;
+    2)
+        source /usr/local/lib/deckos/setup-ai.sh
+        # Voice control only
+        dialog --title "Voice Control" \
+               --yesno "Enable voice control?" 8 50
+        if [ $? -eq 0 ]; then
+            systemctl enable deckos-voice.service
+            systemctl start deckos-voice.service
+        else
+            systemctl disable deckos-voice.service
+            systemctl stop deckos-voice.service
+        fi
+        ;;
+    3)
+        source /usr/local/lib/deckos/setup-ai.sh
+        setup_ai
+        ;;
+    4)
+        echo "Display settings - TBD"
+        ;;
+    5)
+        nmtui
+        ;;
+    6)
+        exit 0
+        ;;
+esac

@@ -1,44 +1,252 @@
-# Base System
+# ============================================
+# DeckOS Standard Configuration Package List
+# Target: ~15GB installed size
+# ============================================
+
+# ============================================
+# BASE SYSTEM (~2GB)
+# ============================================
 base
+base-devel
 linux
 linux-firmware
+linux-headers
 systemd
-
-# Boot
-amd-ucode
-intel-ucode
+systemd-sysvcompat
 
 # Filesystem
 e2fsprogs
 dosfstools
+btrfs-progs
 
-# Network
+# Compression (included in base/base-devel)
+# gzip - in base
+# bzip2 - in base
+# xz - in base
+# zstd - in base
+
+# Core Utilities (included in base)
+# coreutils - in base
+# util-linux - in base
+# procps-ng - in base
+# psmisc - in base
+# grep - in base
+# sed - in base
+# gawk - in base
+
+# Package Management (included in base)
+# pacman - in base
+# archlinux-keyring - in base
+
+# ============================================
+# BOOT & FIRMWARE
+# ============================================
+systemd-boot
+efibootmgr
+amd-ucode
+intel-ucode
+
+# ============================================
+# NETWORKING (~500MB)
+# ============================================
 networkmanager
 wpa_supplicant
+iwd
+dhcpcd
+iproute2
+iputils
+bind-tools
+openssh
+wireless-tools
+wireless-regdb
 
-# Display
+# Bluetooth
+bluez
+bluez-utils
+
+# ============================================
+# DISPLAY STACK (~800MB)
+# ============================================
+
+# Wayland
 wayland
+wayland-protocols
+xorg-xwayland
+
+# Graphics
+mesa
+vulkan-icd-loader
+vulkan-intel
+vulkan-radeon
+intel-media-driver
+libva-mesa-driver
+
+# Fonts
+ttf-dejavu
+ttf-liberation
+ttf-hack
+noto-fonts
+noto-fonts-emoji
+
+# Font Rendering (dependencies auto-installed)
+# freetype2 - dependency
+# fontconfig - dependency
+# cairo - dependency
+# pango - dependency
+
+# ============================================
+# AUDIO STACK (~200MB)
+# ============================================
+pipewire
+pipewire-pulse
+pipewire-alsa
+pipewire-jack
+wireplumber
+alsa-utils
+pavucontrol
+
+# ============================================
+# INPUT STACK (~100MB)
+# ============================================
+# libinput - dependency, auto-installed
+# xf86-input-libinput - only needed for X11
+
+# ============================================
+# DEVELOPER MODE (~500MB)
+# ============================================
+
+# Sway Compositor
 sway
 swaylock
 swayidle
 waybar
-mesa
 
 # Terminal
 alacritty
 
-# Editor
+# Text Editor
 neovim
+vim-runtime
 
-# Utilities
-git
-htop
+# File Manager
 ranger
+
+# Multiplexer
+tmux
 
 # Shell
 zsh
+zsh-completions
+zsh-syntax-highlighting
 
-# Fonts
-ttf-dejavu
-ttf-hack
-noto-fonts
+# Development Tools
+git
+# make - in base-devel
+# gcc - in base-devel
+python
+python-pip
+
+# System Monitoring
+htop
+btop
+
+# Setup Wizard
+dialog
+
+# ============================================
+# AI STACK (Python dependencies)
+# ============================================
+python-requests
+python-psutil
+python-yaml
+
+# ============================================
+# CONSUMER MODE (~2GB)
+# ============================================
+
+# Plasma Mobile (Note: plasma-mobile may need AUR or manual setup)
+# plasma-mobile - check availability
+plasma-desktop
+kwin
+qt6-wayland
+qt6-base
+qt6-declarative
+
+# KDE Frameworks (most are dependencies, explicitly adding key ones)
+kio
+kio-extras
+# kconfig - dependency
+# kcoreaddons - dependency
+# ki18n - dependency
+# knotifications - dependency
+# kservice - dependency
+
+# KDE Applications
+dolphin
+konsole
+kate
+ark
+gwenview
+okular
+spectacle
+
+# KDE Settings
+systemsettings
+plasma-nm
+plasma-pa
+powerdevil
+bluedevil
+
+# Display Manager (needed to start Plasma)
+sddm
+
+# ============================================
+# APPLICATIONS (~1GB)
+# ============================================
+firefox
+mpv
+
+# ============================================
+# SECURITY (~200MB)
+# ============================================
+nftables
+cryptsetup
+gnupg
+apparmor
+
+# 2FA Support
+libfido2
+pam-u2f
+yubikey-manager
+yubikey-personalization-gui
+pcsclite
+ccid
+
+# ============================================
+# SYSTEM SERVICES (~300MB)
+# ============================================
+
+# Time
+chrony
+
+# Power Management
+upower
+acpi
+tlp
+
+# Hardware Tools
+usbutils
+pciutils
+dmidecode
+# lshw - in AUR, skip for now
+
+# ============================================
+# AI STACK (installed post-boot via wizard)
+# ============================================
+# ollama - installed via setup wizard
+# python-pytorch - installed via setup wizard
+# python-transformers - installed via setup wizard
+
+# ============================================
+# TOTAL: ~15GB (Standard Configuration)
+# ============================================

@@ -1,0 +1,200 @@
+#!/bin/bash
+# DeckOS AI Model Installer
+# Downloads and installs AI models based on configuration
+
+set -e
+
+MODELS_DIR="/var/lib/deckos/models"
+CACHE_DIR="/var/cache/deckos/models"
+CONFIG_FILE="/etc/deckos/setup.conf"
+
+# Colors
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+# Model definitions
+declare -A MODELS=(
+    # Whisper models
+    ["whisper-tiny"]="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin|39MB"
+    ["whisper-base"]="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin|142MB"
+    ["whisper-small"]="https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin|466MB"
+    
+    # TTS models
+    ["piper-en-us"]="https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/lessac/medium/en_US-lessac-medium.onnx|63MB"
+    
+    # Embeddings
+    ["embeddings-minilm"]="https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/pytorch_model.bin|90MB"
+)
+
+# Configuration tiers
+TIER_MINIMAL=(
+    "whisper-tiny"
+    "piper-en-us"
+)
+
+TIER_STANDARD=(
+    "whisper-base"
+    "piper-en-us"
+    "embeddings-minilm"
+)
+
+TIER_MAXIMUM=(
+    "whisper-small"
+    "piper-en-us"
+    "embeddings-minilm"
+)
+
+check_disk_space() {
+    local required=$1
+    local available=$(df -BM "$MODELS_DIR" | awk 'NR==2 {print $4}' | sed 's/M//')
+    
+    if [ "$available" -lt "$required" ]; then
+        echo -e "${RED}Error: Insufficient disk space${NC}"
+        echo "Required: ${required}MB"
+        echo "Available: ${available}MB"
+        return 1
+    fi
+    return 0
+}
+
+download_model() {
+    local model_name=$1
+    local model_info="${MODELS[$model_name]}"
+    local url=$(echo "$model_info" | cut -d'|' -f1)
+    local size=$(echo "$model_info" | cut -d'|' -f2)
+    
+    echo -e "${BLUE}Downloading $model_name ($size)...${NC}"
+    
+    mkdir -p "$CACHE_DIR"
+    local filename=$(basename "$url")
+    local cache_file="$CACHE_DIR/$filename"
+    
+    # Download with resume support
+    if [ -f "$cache_file" ]; then
+        echo "Resuming download..."
+        wget -c -q --show-progress "$url" -O "$cache_file"
+    else
+        wget -q --show-progress "$url" -O "$cache_file"
+    fi
+    
+    # Move to models directory
+    mkdir -p "$MODELS_DIR/$model_name"
+    mv "$cache_file" "$MODELS_DIR/$model_name/"
+    
+    echo -e "${GREEN}✓ $model_name installed${NC}"
+}
+
+install_ollama() {
+    echo -e "${BLUE}Installing Ollama...${NC}"
+    
+    if command -v ollama &> /dev/null; then
+        echo "Ollama already installed"
+        return 0
+    fi
+    
+    # Install Ollama
+    curl -fsSL https://ollama.com/install.sh | sh
+    
+    # Enable service
+    systemctl enable ollama.service
+    
+    echo -e "${GREEN}✓ Ollama installed${NC}"
+}
+
+install_ollama_model() {
+    local model=$1
+    echo -e "${BLUE}Downloading Ollama model: $model${NC}"
+    
+    ollama pull "$model"
+    
+    echo -e "${GREEN}✓ $model downloaded${NC}"
+}
+
+install_tier() {
+    local tier=$1
+    local models=()
+    
+    case $tier in
+        minimal)
+            models=("${TIER_MINIMAL[@]}")
+            ;;
+        standard)
+            models=("${TIER_STANDARD[@]}")
+            ;;
+        maximum)
+            models=("${TIER_MAXIMUM[@]}")
+            ;;
+        *)
+            echo "Unknown tier: $tier"
+            exit 1
+            ;;
+    esac
+    
+    echo -e "${BLUE}Installing $tier configuration...${NC}"
+    
+    # Download base models
+    for model in "${models[@]}"; do
+        download_model "$model"
+    done
+    
+    # Install Ollama
+    install_ollama
+    
+    # Install LLM based on tier
+    case $tier in
+        minimal)
+            install_ollama_model "tinyllama"
+            ;;
+        standard)
+            install_ollama_model "phi"
+            ;;
+        maximum)
+            install_ollama_model "mistral"
+            ;;
+    esac
+    
+    echo -e "${GREEN}✓ $tier configuration installed${NC}"
+}
+
+interactive_install() {
+    dialog --title "AI Model Installation" \
+           --menu "Choose installation tier:\n" 15 60 3 \
+           "minimal" "~2GB - Basic AI, cloud fallback" \
+           "standard" "~10GB - Good local AI (recommended)" \
+           "maximum" "~20GB - Best local AI" \
+           2> /tmp/tier_choice
+    
+    if [ $? -eq 0 ]; then
+        TIER=$(cat /tmp/tier_choice)
+        rm -f /tmp/tier_choice
+        
+        install_tier "$TIER"
+    fi
+}
+
+# Main
+case "${1:-interactive}" in
+    minimal|standard|maximum)
+        install_tier "$1"
+        ;;
+    interactive)
+        interactive_install
+        ;;
+    ollama)
+        install_ollama
+        ;;
+    model)
+        if [ -z "$2" ]; then
+            echo "Usage: deckos-ai-install model <model-name>"
+            exit 1
+        fi
+        download_model "$2"
+        ;;
+    *)
+        echo "Usage: deckos-ai-install [minimal|standard|maximum|interactive]"
+        exit 1
+        ;;
+esac
