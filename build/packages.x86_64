@@ -41,7 +41,6 @@ btrfs-progs
 # ============================================
 # BOOT & FIRMWARE
 # ============================================
-systemd-boot
 efibootmgr
 amd-ucode
 intel-ucode
@@ -57,7 +56,7 @@ iproute2
 iputils
 bind-tools
 openssh
-wireless-tools
+iw
 wireless-regdb
 
 # Bluetooth
