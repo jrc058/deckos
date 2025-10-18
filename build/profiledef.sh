@@ -8,10 +8,7 @@ iso_application="DeckOS Live/Install"
 iso_version="0.1.0-alpha"
 install_dir="deckos"
 buildmodes=('iso')
-bootmodes=('uefi-ia32.systemd-boot.esp'
-           'uefi-x64.systemd-boot.esp'
-           'uefi-ia32.systemd-boot.eltorito'
-           'uefi-x64.systemd-boot.eltorito')
+bootmodes=('uefi-x64.systemd-boot.esp' 'uefi-x64.systemd-boot.eltorito')
 arch="x86_64"
 pacman_conf="pacman.conf"
 airootfs_image_type="squashfs"
